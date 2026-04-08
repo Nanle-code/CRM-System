@@ -1,0 +1,2098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini CRM System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #f7f3ee;
+            --bg-secondary: #ffffff;
+            --text-primary: #1a1410;
+            --text-secondary: #4a4541;
+            --accent: #c1440e;
+            --accent-hover: #a5360c;
+            --positive: #6b8f71;
+            --border: #e8dfd6;
+            --shadow: rgba(26, 20, 16, 0.1);
+            --terracotta-border: 2px solid var(--accent);
+            --chart-blue: #3498db;
+            --chart-green: #2ecc71;
+            --chart-orange: #f39c12;
+            --chart-red: #e74c3c;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1410;
+            --bg-secondary: #2a2420;
+            --text-primary: #f7f3ee;
+            --text-secondary: #e8dfd6;
+            --border: #4a4541;
+            --shadow: rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Mono', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* Paper texture background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 10px,
+                    rgba(26, 20, 16, 0.02) 10px,
+                    rgba(26, 20, 16, 0.02) 20px
+                );
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Dark mode theme toggle */
+        .theme-toggle {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 50px;
+            padding: 0.5rem;
+            cursor: pointer;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px var(--shadow);
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 20px var(--shadow);
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(26, 20, 16, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Charts */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 2rem 0;
+        }
+
+        .chart {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Bulk actions */
+        .bulk-actions {
+            display: none;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .bulk-actions.active {
+            display: flex;
+        }
+
+        .checkbox-cell {
+            width: 40px;
+        }
+
+        .bulk-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        /* Advanced search */
+        .advanced-search {
+            display: none;
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        .advanced-search.active {
+            display: block;
+        }
+
+        .search-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Export options */
+        .export-menu {
+            position: relative;
+            display: inline-block;
+        }
+
+        .export-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px var(--shadow);
+            display: none;
+            min-width: 150px;
+            z-index: 100;
+        }
+
+        .export-dropdown.active {
+            display: block;
+        }
+
+        .export-option {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .export-option:last-child {
+            border-bottom: none;
+        }
+
+        .export-option:hover {
+            background: rgba(193, 68, 14, 0.1);
+        }
+
+        /* Keyboard shortcuts help */
+        .shortcuts-help {
+            position: fixed;
+            bottom: 1rem;
+            left: 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            display: none;
+            z-index: 1000;
+            max-width: 300px;
+        }
+
+        .shortcuts-help.active {
+            display: block;
+        }
+
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .shortcut-key {
+            background: var(--accent);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        /* Enhanced table */
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        .enhanced-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .enhanced-table th {
+            position: sticky;
+            top: 0;
+            background: var(--bg-secondary);
+            z-index: 10;
+            white-space: nowrap;
+        }
+
+        .enhanced-table td {
+            white-space: nowrap;
+        }
+
+        /* Performance optimizations */
+        .virtual-scroll {
+            height: 500px;
+            overflow-y: auto;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 2rem 0;
+            box-shadow: 2px 0 10px var(--shadow);
+        }
+
+        .app-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 0 1.5rem;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: rgba(193, 68, 14, 0.1);
+            border-left-color: var(--accent);
+        }
+
+        .nav-item.active {
+            background: rgba(193, 68, 14, 0.15);
+            border-left-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .nav-icon {
+            margin-right: 1rem;
+            font-size: 1.2rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            overflow-x: auto;
+        }
+
+        .page {
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px var(--shadow);
+            border-left: var(--terracotta-border);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px var(--shadow);
+        }
+
+        /* Dashboard */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            text-align: center;
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            display: flex;
+            height: 40px;
+            border-radius: 20px;
+            overflow: hidden;
+            margin: 2rem 0;
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        .status-segment {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .status-segment:hover {
+            filter: brightness(1.1);
+            transform: scaleY(1.05);
+        }
+
+        /* Tables */
+        .table-container {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: rgba(193, 68, 14, 0.1);
+            font-weight: 500;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s ease;
+        }
+
+        th:hover {
+            background: rgba(193, 68, 14, 0.15);
+        }
+
+        tr:hover {
+            background: rgba(193, 68, 14, 0.05);
+            border-left: 3px solid var(--accent);
+        }
+
+        /* Status Badges */
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .status-badge:hover {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+
+        .status-lead {
+            background: rgba(193, 68, 14, 0.2);
+            color: var(--accent);
+        }
+
+        .status-active {
+            background: rgba(107, 143, 113, 0.2);
+            color: var(--positive);
+        }
+
+        .status-churned {
+            background: rgba(74, 74, 74, 0.2);
+            color: #666;
+        }
+
+        .status-prospect {
+            background: rgba(52, 152, 219, 0.2);
+            color: #3498db;
+        }
+
+        /* Buttons */
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'DM Mono', monospace;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(193, 68, 14, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+
+        .btn-secondary:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-family: 'DM Mono', monospace;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* Customer Detail Drawer */
+        .drawer {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100%;
+            background: var(--bg-secondary);
+            box-shadow: -2px 0 20px var(--shadow);
+            transition: right 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .drawer.open {
+            right: 0;
+        }
+
+        .drawer-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+
+        .drawer-content {
+            padding: 1.5rem;
+        }
+
+        .close-drawer {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 0.5rem;
+        }
+
+        .close-drawer:hover {
+            color: var(--accent);
+        }
+
+        /* Activity Timeline */
+        .activity-timeline {
+            margin-top: 2rem;
+        }
+
+        .activity-item {
+            border-left: 2px solid var(--accent);
+            padding-left: 1rem;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .activity-item::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: 0;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .activity-action {
+            font-weight: 500;
+            color: var(--accent);
+        }
+
+        .activity-timestamp {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* Search and Filter */
+        .controls-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-dropdown {
+            min-width: 150px;
+        }
+
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--bg-secondary);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px var(--shadow);
+            border-left: var(--terracotta-border);
+            z-index: 2000;
+            animation: slideInRight 0.3s ease;
+            max-width: 300px;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.success {
+            border-left-color: var(--positive);
+        }
+
+        .toast.error {
+            border-left-color: #e74c3c;
+        }
+
+        /* Loading Skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                order: 2;
+            }
+            
+            .main-content {
+                order: 1;
+            }
+            
+            .drawer {
+                width: 100%;
+                right: -100%;
+            }
+        }
+
+        /* Inline Editing */
+        .editable {
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+
+        .editable:hover {
+            background: rgba(193, 68, 14, 0.1);
+        }
+
+        .editing {
+            background: var(--bg-secondary);
+            border: 1px solid var(--accent);
+            padding: 0.25rem;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .page-btn {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border);
+            background: var(--bg-secondary);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .page-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .page-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <h1 class="app-title">Mini CRM</h1>
+            <nav>
+                <div class="nav-item active" data-page="dashboard">
+                    <span class="nav-icon">dashboard</span>
+                    <span>Dashboard</span>
+                </div>
+                <div class="nav-item" data-page="customers">
+                    <span class="nav-icon">people</span>
+                    <span>Customers</span>
+                </div>
+                <div class="nav-item" data-page="add-customer">
+                    <span class="nav-icon">add</span>
+                    <span>Add New</span>
+                </div>
+                <div class="nav-item" data-page="activity">
+                    <span class="nav-icon">history</span>
+                    <span>Activity Log</span>
+                </div>
+                <div class="nav-item" onclick="toggleShortcutsHelp()">
+                    <span class="nav-icon">help</span>
+                    <span>Shortcuts</span>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Page -->
+            <div class="page active" id="dashboard">
+                <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 2rem;">Dashboard</h2>
+                
+                <div class="dashboard-grid">
+                    <div class="card kpi-card">
+                        <div class="kpi-value" id="total-customers">-</div>
+                        <div class="kpi-label">Total Customers</div>
+                    </div>
+                    <div class="card kpi-card">
+                        <div class="kpi-value" id="active-deals">-</div>
+                        <div class="kpi-label">Active Deals</div>
+                    </div>
+                    <div class="card kpi-card">
+                        <div class="kpi-value" id="pipeline-value">-</div>
+                        <div class="kpi-label">Pipeline Value</div>
+                    </div>
+                    <div class="card kpi-card">
+                        <div class="kpi-value" id="leads-month">-</div>
+                        <div class="kpi-label">Leads This Month</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="font-family: 'Playfair Display', serif; margin-bottom: 1rem;">Status Breakdown</h3>
+                    <div class="status-bar" id="status-bar"></div>
+                </div>
+
+                <div class="card">
+                    <h3 style="font-family: 'Playfair Display', serif; margin-bottom: 1rem;">Deal Value Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="deal-chart" class="chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="font-family: 'Playfair Display', serif; margin-bottom: 1rem;">Monthly Trends</h3>
+                    <div class="chart-container">
+                        <canvas id="trends-chart" class="chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="font-family: 'Playfair Display', serif; margin-bottom: 1rem;">Recent Activity</h3>
+                    <div id="recent-activity"></div>
+                </div>
+            </div>
+
+            <!-- Customers Page -->
+            <div class="page" id="customers">
+                <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 2rem;">Customers</h2>
+                
+                <div class="controls-bar">
+                    <input type="text" class="search-box" id="customer-search" placeholder="Search by name, email, or company...">
+                    <select class="filter-dropdown" id="status-filter">
+                        <option value="">All Status</option>
+                        <option value="Lead">Lead</option>
+                        <option value="Active">Active</option>
+                        <option value="Churned">Churned</option>
+                        <option value="Prospect">Prospect</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="toggleAdvancedSearch()">Advanced Search</button>
+                    <div class="export-menu">
+                        <button class="btn btn-secondary" onclick="toggleExportMenu()">Export ▼</button>
+                        <div class="export-dropdown" id="export-dropdown">
+                            <div class="export-option" onclick="exportData('csv')">Export as CSV</div>
+                            <div class="export-option" onclick="exportData('json')">Export as JSON</div>
+                            <div class="export-option" onclick="exportData('excel')">Export as Excel</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Advanced Search -->
+                <div class="advanced-search" id="advanced-search">
+                    <div class="search-row">
+                        <div class="form-group">
+                            <label>Min Deal Value</label>
+                            <input type="number" id="min-deal" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Max Deal Value</label>
+                            <input type="number" id="max-deal" placeholder="1000000">
+                        </div>
+                        <div class="form-group">
+                            <label>Created After</label>
+                            <input type="date" id="created-after">
+                        </div>
+                        <div class="form-group">
+                            <label>Created Before</label>
+                            <input type="date" id="created-before">
+                        </div>
+                    </div>
+                    <div class="search-row">
+                        <div class="form-group">
+                            <label>Tags</label>
+                            <input type="text" id="tags-search" placeholder="comma-separated tags">
+                        </div>
+                        <div class="form-group">
+                            <button class="btn" onclick="applyAdvancedSearch()">Apply Filters</button>
+                        </div>
+                        <div class="form-group">
+                            <button class="btn btn-secondary" onclick="clearAdvancedSearch()">Clear</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bulk Actions -->
+                <div class="bulk-actions" id="bulk-actions">
+                    <span id="selected-count">0 selected</span>
+                    <button class="btn btn-secondary" onclick="bulkDelete()">Delete Selected</button>
+                    <button class="btn btn-secondary" onclick="bulkExport()">Export Selected</button>
+                    <button class="btn btn-secondary" onclick="clearSelection()">Clear Selection</button>
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="enhanced-table" id="customers-table">
+                        <thead>
+                            <tr>
+                                <th class="checkbox-cell">
+                                    <input type="checkbox" class="bulk-checkbox" id="select-all" onchange="toggleSelectAll()">
+                                </th>
+                                <th data-sort="Full Name">Name ↕</th>
+                                <th data-sort="Email">Email ↕</th>
+                                <th data-sort="Company">Company ↕</th>
+                                <th data-sort="Status">Status ↕</th>
+                                <th data-sort="Deal Value">Deal Value ↕</th>
+                                <th data-sort="Created Date">Created ↕</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customers-tbody">
+                            <!-- Customers will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination" id="pagination"></div>
+            </div>
+
+            <!-- Add Customer Page -->
+            <div class="page" id="add-customer">
+                <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 2rem;">Add New Customer</h2>
+                
+                <div class="card">
+                    <form id="add-customer-form">
+                        <div class="form-group">
+                            <label for="full-name">Full Name *</label>
+                            <input type="text" id="full-name" name="Full Name" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="email">Email *</label>
+                            <input type="email" id="email" name="Email" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="phone">Phone</label>
+                            <input type="tel" id="phone" name="Phone">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="company">Company *</label>
+                            <input type="text" id="company" name="Company" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="status">Status</label>
+                            <select id="status" name="Status">
+                                <option value="Lead">Lead</option>
+                                <option value="Active">Active</option>
+                                <option value="Churned">Churned</option>
+                                <option value="Prospect">Prospect</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="deal-value">Deal Value</label>
+                            <input type="number" id="deal-value" name="Deal Value" min="0" step="1000">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="tags">Tags</label>
+                            <input type="text" id="tags" name="Tags" placeholder="comma-separated tags">
+                        </div>
+                        
+                        <button type="submit" class="btn">Add Customer</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Activity Log Page -->
+            <div class="page" id="activity">
+                <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 2rem;">Activity Log</h2>
+                
+                <div class="card">
+                    <div id="activity-timeline"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Theme Toggle -->
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
+        <span id="theme-icon">🌙</span>
+    </button>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Keyboard Shortcuts Help -->
+    <div class="shortcuts-help" id="shortcuts-help">
+        <h4 style="margin-bottom: 1rem;">Keyboard Shortcuts</h4>
+        <div class="shortcut-item">
+            <span>Toggle Dark Mode</span>
+            <span class="shortcut-key">Ctrl + D</span>
+        </div>
+        <div class="shortcut-item">
+            <span>Focus Search</span>
+            <span class="shortcut-key">Ctrl + K</span>
+        </div>
+        <div class="shortcut-item">
+            <span>Add Customer</span>
+            <span class="shortcut-key">Ctrl + N</span>
+        </div>
+        <div class="shortcut-item">
+            <span>Export Data</span>
+            <span class="shortcut-key">Ctrl + E</span>
+        </div>
+        <div class="shortcut-item">
+            <span>Refresh</span>
+            <span class="shortcut-key">Ctrl + R</span>
+        </div>
+        <button class="btn btn-secondary" style="margin-top: 1rem; width: 100%;" onclick="toggleShortcutsHelp()">Close</button>
+    </div>
+
+    <!-- Customer Detail Drawer -->
+    <div class="drawer" id="customer-drawer">
+        <div class="drawer-header">
+            <h3 style="font-family: 'Playfair Display', serif;">Customer Details</h3>
+            <button class="close-drawer" onclick="closeDrawer()">×</button>
+        </div>
+        <div class="drawer-content" id="drawer-content">
+            <!-- Customer details will be loaded here -->
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE = 'http://localhost:5000';
+
+        // State Management
+        let currentCustomers = [];
+        let filteredCustomers = [];
+        let currentPage = 1;
+        const customersPerPage = 10;
+        let currentSort = { field: null, direction: 'asc' };
+        let currentCustomerDetail = null;
+        let selectedCustomers = new Set();
+        let isDarkMode = false;
+        let charts = {};
+        let isLoading = false;
+
+        // Initialize Charts
+        function initCharts() {
+            // Deal Value Chart
+            const dealCtx = document.getElementById('deal-chart');
+            if (dealCtx) {
+                charts.deal = createPieChart(dealCtx);
+            }
+
+            // Trends Chart
+            const trendsCtx = document.getElementById('trends-chart');
+            if (trendsCtx) {
+                charts.trends = createLineChart(trendsCtx);
+            }
+        }
+
+        // Simple Chart Implementations
+        function createPieChart(canvas) {
+            const ctx = canvas.getContext('2d');
+            return {
+                update: function(data) {
+                    // Simple pie chart implementation
+                    const width = canvas.width = canvas.offsetWidth;
+                    const height = canvas.height = canvas.offsetHeight;
+                    const centerX = width / 2;
+                    const centerY = height / 2;
+                    const radius = Math.min(width, height) / 2 - 20;
+
+                    ctx.clearRect(0, 0, width, height);
+
+                    const total = data.reduce((sum, item) => sum + item.value, 0);
+                    let currentAngle = -Math.PI / 2;
+
+                    const colors = ['#c1440e', '#6b8f71', '#666666', '#3498db'];
+
+                    data.forEach((item, index) => {
+                        const sliceAngle = (item.value / total) * 2 * Math.PI;
+                        
+                        // Draw slice
+                        ctx.beginPath();
+                        ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
+                        ctx.lineTo(centerX, centerY);
+                        ctx.fillStyle = colors[index % colors.length];
+                        ctx.fill();
+
+                        // Draw label
+                        const labelAngle = currentAngle + sliceAngle / 2;
+                        const labelX = centerX + Math.cos(labelAngle) * (radius * 0.7);
+                        const labelY = centerY + Math.sin(labelAngle) * (radius * 0.7);
+                        
+                        ctx.fillStyle = isDarkMode ? '#f7f3ee' : '#1a1410';
+                        ctx.font = '12px DM Mono';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(item.label, labelX, labelY);
+
+                        currentAngle += sliceAngle;
+                    });
+                }
+            };
+        }
+
+        function createLineChart(canvas) {
+            const ctx = canvas.getContext('2d');
+            return {
+                update: function(data) {
+                    const width = canvas.width = canvas.offsetWidth;
+                    const height = canvas.height = canvas.offsetHeight;
+                    const padding = 40;
+
+                    ctx.clearRect(0, 0, width, height);
+
+                    // Draw axes
+                    ctx.strokeStyle = isDarkMode ? '#4a4541' : '#e8dfd6';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(padding, padding);
+                    ctx.lineTo(padding, height - padding);
+                    ctx.lineTo(width - padding, height - padding);
+                    ctx.stroke();
+
+                    // Draw data
+                    if (data.length > 0) {
+                        const maxValue = Math.max(...data.map(d => d.value));
+                        const xStep = (width - 2 * padding) / (data.length - 1);
+                        const yScale = (height - 2 * padding) / maxValue;
+
+                        ctx.strokeStyle = '#c1440e';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+
+                        data.forEach((point, index) => {
+                            const x = padding + index * xStep;
+                            const y = height - padding - point.value * yScale;
+
+                            if (index === 0) {
+                                ctx.moveTo(x, y);
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
+
+                            // Draw point
+                            ctx.fillStyle = '#c1440e';
+                            ctx.beginPath();
+                            ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                            ctx.fill();
+                        });
+
+                        ctx.stroke();
+                    }
+                }
+            };
+        }
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', function() {
+            setupNavigation();
+            loadDashboard();
+            setupEventListeners();
+            setupKeyboardShortcuts();
+            initCharts();
+            loadTheme();
+        });
+
+        // Theme Management
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+            document.getElementById('theme-icon').textContent = isDarkMode ? '☀️' : '🌙';
+            localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+            
+            // Redraw charts with new theme
+            updateCharts();
+        }
+
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                isDarkMode = true;
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.getElementById('theme-icon').textContent = '☀️';
+            }
+        }
+
+        // Keyboard Shortcuts
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey) {
+                    switch(e.key.toLowerCase()) {
+                        case 'd':
+                            e.preventDefault();
+                            toggleTheme();
+                            break;
+                        case 'k':
+                            e.preventDefault();
+                            document.getElementById('customer-search')?.focus();
+                            break;
+                        case 'n':
+                            e.preventDefault();
+                            switchPage('add-customer');
+                            break;
+                        case 'e':
+                            e.preventDefault();
+                            toggleExportMenu();
+                            break;
+                        case 'r':
+                            e.preventDefault();
+                            location.reload();
+                            break;
+                    }
+                }
+            });
+        }
+
+        function toggleShortcutsHelp() {
+            const help = document.getElementById('shortcuts-help');
+            help.classList.toggle('active');
+        }
+
+        // Loading States
+        function showLoading() {
+            isLoading = true;
+            document.getElementById('loading-overlay').classList.add('active');
+        }
+
+        function hideLoading() {
+            isLoading = false;
+            document.getElementById('loading-overlay').classList.remove('active');
+        }
+
+        // Advanced Search
+        function toggleAdvancedSearch() {
+            const search = document.getElementById('advanced-search');
+            search.classList.toggle('active');
+        }
+
+        function applyAdvancedSearch() {
+            const minDeal = document.getElementById('min-deal').value;
+            const maxDeal = document.getElementById('max-deal').value;
+            const createdAfter = document.getElementById('created-after').value;
+            const createdBefore = document.getElementById('created-before').value;
+            const tags = document.getElementById('tags-search').value;
+
+            filteredCustomers = currentCustomers.filter(customer => {
+                const dealValue = Number(customer['Deal Value']) || 0;
+                const createdDate = customer['Created Date'];
+                const customerTags = customer.Tags ? customer.Tags.toLowerCase() : '';
+                const searchTags = tags.toLowerCase();
+
+                return (!minDeal || dealValue >= Number(minDeal)) &&
+                       (!maxDeal || dealValue <= Number(maxDeal)) &&
+                       (!createdAfter || createdDate >= createdAfter) &&
+                       (!createdBefore || createdDate <= createdBefore) &&
+                       (!tags || customerTags.includes(searchTags));
+            });
+
+            currentPage = 1;
+            renderCustomersTable();
+            showToast('Advanced filters applied', 'success');
+        }
+
+        function clearAdvancedSearch() {
+            document.getElementById('min-deal').value = '';
+            document.getElementById('max-deal').value = '';
+            document.getElementById('created-after').value = '';
+            document.getElementById('created-before').value = '';
+            document.getElementById('tags-search').value = '';
+            
+            filteredCustomers = [...currentCustomers];
+            currentPage = 1;
+            renderCustomersTable();
+        }
+
+        // Export Functions
+        function toggleExportMenu() {
+            const dropdown = document.getElementById('export-dropdown');
+            dropdown.classList.toggle('active');
+        }
+
+        function exportData(format) {
+            const data = selectedCustomers.size > 0 ? 
+                currentCustomers.filter(c => selectedCustomers.has(c.ID)) : 
+                filteredCustomers;
+
+            switch(format) {
+                case 'csv':
+                    exportCSV(data);
+                    break;
+                case 'json':
+                    exportJSON(data);
+                    break;
+                case 'excel':
+                    exportExcel(data);
+                    break;
+            }
+            
+            toggleExportMenu();
+        }
+
+        function exportCSV(data) {
+            const headers = Object.keys(data[0]);
+            const csvContent = [
+                headers.join(','),
+                ...data.map(row => headers.map(header => `"${row[header]}"`).join(','))
+            ].join('\n');
+
+            downloadFile(csvContent, 'customers.csv', 'text/csv');
+        }
+
+        function exportJSON(data) {
+            const jsonContent = JSON.stringify(data, null, 2);
+            downloadFile(jsonContent, 'customers.json', 'application/json');
+        }
+
+        function exportExcel(data) {
+            // Simple Excel-like format (tab-separated)
+            const headers = Object.keys(data[0]);
+            const tsvContent = [
+                headers.join('\t'),
+                ...data.map(row => headers.map(header => row[header]).join('\t'))
+            ].join('\n');
+
+            downloadFile(tsvContent, 'customers.txt', 'text/plain');
+        }
+
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showToast(`Exported ${filename}`, 'success');
+        }
+
+        // Bulk Operations
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('select-all');
+            const checkboxes = document.querySelectorAll('.customer-checkbox');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAll.checked;
+                const customerId = checkbox.dataset.customerId;
+                if (selectAll.checked) {
+                    selectedCustomers.add(customerId);
+                } else {
+                    selectedCustomers.delete(customerId);
+                }
+            });
+            
+            updateBulkActions();
+        }
+
+        function toggleCustomerSelection(customerId) {
+            if (selectedCustomers.has(customerId)) {
+                selectedCustomers.delete(customerId);
+            } else {
+                selectedCustomers.add(customerId);
+            }
+            updateBulkActions();
+        }
+
+        function updateBulkActions() {
+            const bulkActions = document.getElementById('bulk-actions');
+            const selectedCount = document.getElementById('selected-count');
+            
+            if (selectedCustomers.size > 0) {
+                bulkActions.classList.add('active');
+                selectedCount.textContent = `${selectedCustomers.size} selected`;
+            } else {
+                bulkActions.classList.remove('active');
+            }
+        }
+
+        async function bulkDelete() {
+            if (!confirm(`Delete ${selectedCustomers.size} customers?`)) return;
+            
+            showLoading();
+            try {
+                for (const customerId of selectedCustomers) {
+                    await apiCall(`/customers/${customerId}`, { method: 'DELETE' });
+                }
+                
+                showToast(`Deleted ${selectedCustomers.size} customers`, 'success');
+                clearSelection();
+                loadCustomers();
+            } catch (error) {
+                showToast('Failed to delete customers', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function bulkExport() {
+            exportData('csv');
+        }
+
+        function clearSelection() {
+            selectedCustomers.clear();
+            document.getElementById('select-all').checked = false;
+            document.querySelectorAll('.customer-checkbox').forEach(cb => cb.checked = false);
+            updateBulkActions();
+        }
+
+        // Enhanced Dashboard
+        function updateCharts() {
+            if (!currentCustomers.length) return;
+
+            // Deal Value Distribution
+            const statusData = Object.entries(
+                currentCustomers.reduce((acc, customer) => {
+                    const status = customer.Status;
+                    const value = Number(customer['Deal Value']) || 0;
+                    acc[status] = (acc[status] || 0) + value;
+                    return acc;
+                }, {})
+            ).map(([status, value]) => ({ label: status, value }));
+
+            if (charts.deal) {
+                charts.deal.update(statusData);
+            }
+
+            // Monthly Trends (mock data for demo)
+            const trendsData = [
+                { label: 'Jan', value: 150000 },
+                { label: 'Feb', value: 180000 },
+                { label: 'Mar', value: 220000 },
+                { label: 'Apr', value: 195000 }
+            ];
+
+            if (charts.trends) {
+                charts.trends.update(trendsData);
+            }
+        }
+
+        // Navigation
+        function setupNavigation() {
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    const targetPage = this.dataset.page;
+                    switchPage(targetPage);
+                    
+                    // Update active state
+                    navItems.forEach(nav => nav.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+        }
+
+        function switchPage(pageId) {
+            const pages = document.querySelectorAll('.page');
+            pages.forEach(page => page.classList.remove('active'));
+            
+            const targetPage = document.getElementById(pageId);
+            if (targetPage) {
+                targetPage.classList.add('active');
+                
+                // Load page-specific data
+                switch(pageId) {
+                    case 'dashboard':
+                        loadDashboard();
+                        break;
+                    case 'customers':
+                        loadCustomers();
+                        break;
+                    case 'activity':
+                        loadActivityLog();
+                        break;
+                }
+            }
+        }
+
+        // Event Listeners
+        function setupEventListeners() {
+            // Add customer form
+            const addForm = document.getElementById('add-customer-form');
+            if (addForm) {
+                addForm.addEventListener('submit', handleAddCustomer);
+            }
+
+            // Customer search
+            const searchBox = document.getElementById('customer-search');
+            if (searchBox) {
+                searchBox.addEventListener('input', filterCustomers);
+            }
+
+            // Status filter
+            const statusFilter = document.getElementById('status-filter');
+            if (statusFilter) {
+                statusFilter.addEventListener('change', filterCustomers);
+            }
+
+            // Table sorting
+            const sortableHeaders = document.querySelectorAll('th[data-sort]');
+            sortableHeaders.forEach(header => {
+                header.addEventListener('click', function() {
+                    const sortField = this.dataset.sort;
+                    sortCustomers(sortField);
+                });
+            });
+        }
+
+        // API Functions
+        async function apiCall(endpoint, options = {}) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error('API call failed:', error);
+                showToast('API call failed. Is the server running?', 'error');
+                throw error;
+            }
+        }
+
+        // Dashboard Functions
+        async function loadDashboard() {
+            showLoading();
+            try {
+                const [stats, customers] = await Promise.all([
+                    apiCall('/stats'),
+                    apiCall('/customers')
+                ]);
+                
+                currentCustomers = customers;
+                updateDashboardStats(stats);
+                updateStatusBar(stats.status_counts);
+                updateCharts();
+                loadRecentActivity();
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+                showToast('Failed to load dashboard', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function updateDashboardStats(stats) {
+            document.getElementById('total-customers').textContent = stats.total_customers;
+            document.getElementById('active-deals').textContent = stats.status_counts.Active || 0;
+            document.getElementById('pipeline-value').textContent = `$${stats.total_deal_value.toLocaleString()}`;
+            document.getElementById('leads-month').textContent = stats.leads_this_month;
+        }
+
+        function updateStatusBar(statusCounts) {
+            const statusBar = document.getElementById('status-bar');
+            statusBar.innerHTML = '';
+            
+            const total = Object.values(statusCounts).reduce((sum, count) => sum + count, 0);
+            const colors = {
+                'Lead': '#c1440e',
+                'Active': '#6b8f71',
+                'Churned': '#666666',
+                'Prospect': '#3498db'
+            };
+            
+            Object.entries(statusCounts).forEach(([status, count]) => {
+                const percentage = total > 0 ? (count / total) * 100 : 0;
+                const segment = document.createElement('div');
+                segment.className = 'status-segment';
+                segment.style.width = `${percentage}%`;
+                segment.style.backgroundColor = colors[status] || '#999';
+                segment.textContent = `${status} (${count})`;
+                segment.title = `${status}: ${count} customers`;
+                statusBar.appendChild(segment);
+            });
+        }
+
+        async function loadRecentActivity() {
+            try {
+                const customers = await apiCall('/customers');
+                const recentActivities = [];
+                
+                // Get activity for each customer and find the most recent
+                for (const customer of customers.slice(0, 10)) {
+                    const customerDetail = await apiCall(`/customers/${customer.ID}`);
+                    if (customerDetail.activity_log.length > 0) {
+                        const latestActivity = customerDetail.activity_log[0];
+                        recentActivities.push({
+                            ...latestActivity,
+                            customerName: customer['Full Name']
+                        });
+                    }
+                }
+                
+                // Sort by timestamp
+                recentActivities.sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
+                
+                // Display top 5
+                const container = document.getElementById('recent-activity');
+                container.innerHTML = recentActivities.slice(0, 5).map(activity => `
+                    <div class="activity-item">
+                        <div class="activity-action">${activity.Action}</div>
+                        <div>${activity.Notes}</div>
+                        <div class="activity-timestamp">${activity.customerName} - ${formatDate(activity.Timestamp)}</div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load recent activity:', error);
+            }
+        }
+
+        // Customers Functions
+        async function loadCustomers() {
+            showLoading();
+            try {
+                currentCustomers = await apiCall('/customers');
+                filteredCustomers = [...currentCustomers];
+                currentPage = 1;
+                renderCustomersTable();
+            } catch (error) {
+                console.error('Failed to load customers:', error);
+                showToast('Failed to load customers', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function renderCustomersTable() {
+            const tbody = document.getElementById('customers-tbody');
+            const startIndex = (currentPage - 1) * customersPerPage;
+            const endIndex = startIndex + customersPerPage;
+            const pageCustomers = filteredCustomers.slice(startIndex, endIndex);
+            
+            tbody.innerHTML = pageCustomers.map(customer => `
+                <tr class="fade-in-up">
+                    <td class="checkbox-cell">
+                        <input type="checkbox" class="bulk-checkbox customer-checkbox" 
+                               data-customer-id="${customer.ID}" 
+                               onchange="toggleCustomerSelection('${customer.ID}')"
+                               ${selectedCustomers.has(customer.ID) ? 'checked' : ''}>
+                    </td>
+                    <td>${customer['Full Name']}</td>
+                    <td>${customer.Email}</td>
+                    <td>${customer.Company}</td>
+                    <td><span class="status-badge status-${customer.Status.toLowerCase()}">${customer.Status}</span></td>
+                    <td>$${Number(customer['Deal Value'] || 0).toLocaleString()}</td>
+                    <td>${formatDate(customer['Created Date'])}</td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="viewCustomer('${customer.ID}')">View</button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            renderPagination();
+        }
+
+        function renderPagination() {
+            const totalPages = Math.ceil(filteredCustomers.length / customersPerPage);
+            const pagination = document.getElementById('pagination');
+            
+            let html = '';
+            
+            // Previous button
+            html += `<button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>`;
+            
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+            }
+            
+            // Next button
+            html += `<button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>`;
+            
+            pagination.innerHTML = html;
+        }
+
+        function changePage(page) {
+            const totalPages = Math.ceil(filteredCustomers.length / customersPerPage);
+            if (page < 1 || page > totalPages) return;
+            
+            currentPage = page;
+            renderCustomersTable();
+        }
+
+        function filterCustomers() {
+            const searchTerm = document.getElementById('customer-search').value.toLowerCase();
+            const statusFilter = document.getElementById('status-filter').value;
+            
+            filteredCustomers = currentCustomers.filter(customer => {
+                const matchesSearch = !searchTerm || 
+                    customer['Full Name'].toLowerCase().includes(searchTerm) ||
+                    customer.Email.toLowerCase().includes(searchTerm) ||
+                    customer.Company.toLowerCase().includes(searchTerm);
+                
+                const matchesStatus = !statusFilter || customer.Status === statusFilter;
+                
+                return matchesSearch && matchesStatus;
+            });
+            
+            currentPage = 1;
+            renderCustomersTable();
+        }
+
+        function sortCustomers(field) {
+            if (currentSort.field === field) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.field = field;
+                currentSort.direction = 'asc';
+            }
+            
+            filteredCustomers.sort((a, b) => {
+                let aVal = a[field];
+                let bVal = b[field];
+                
+                // Handle numeric values
+                if (field === 'Deal Value') {
+                    aVal = Number(aVal) || 0;
+                    bVal = Number(bVal) || 0;
+                }
+                
+                if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
+            renderCustomersTable();
+        }
+
+        // Customer Detail Functions
+        async function viewCustomer(customerId) {
+            try {
+                const data = await apiCall(`/customers/${customerId}`);
+                currentCustomerDetail = data;
+                renderCustomerDetail();
+                openDrawer();
+            } catch (error) {
+                console.error('Failed to load customer detail:', error);
+            }
+        }
+
+        function renderCustomerDetail() {
+            const customer = currentCustomerDetail.customer;
+            const activities = currentCustomerDetail.activity_log;
+            
+            const drawerContent = document.getElementById('drawer-content');
+            drawerContent.innerHTML = `
+                <div class="customer-info">
+                    <h4 style="font-family: 'Playfair Display', serif; margin-bottom: 1rem;">${customer['Full Name']}</h4>
+                    
+                    <div class="form-group">
+                        <label>Email</label>
+                        <div class="editable" onclick="makeEditable(this, 'Email')">${customer.Email}</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <div class="editable" onclick="makeEditable(this, 'Phone')">${customer.Phone || 'Not set'}</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Company</label>
+                        <div class="editable" onclick="makeEditable(this, 'Company')">${customer.Company}</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Status</label>
+                        <div class="editable" onclick="makeEditable(this, 'Status')">
+                            <span class="status-badge status-${customer.Status.toLowerCase()}">${customer.Status}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Deal Value</label>
+                        <div class="editable" onclick="makeEditable(this, 'Deal Value')">$${Number(customer['Deal Value'] || 0).toLocaleString()}</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Tags</label>
+                        <div class="editable" onclick="makeEditable(this, 'Tags')">${customer.Tags || 'No tags'}</div>
+                    </div>
+                    
+                    <button class="btn" onclick="saveCustomerChanges()" style="margin-top: 1rem;">Save Changes</button>
+                </div>
+                
+                <div class="activity-timeline">
+                    <h4 style="font-family: 'Playfair Display', serif; margin-bottom: 1rem;">Activity Log</h4>
+                    
+                    <div class="form-group">
+                        <label>Log Activity</label>
+                        <form onsubmit="addActivity(event)">
+                            <select name="Action" required style="margin-bottom: 0.5rem;">
+                                <option value="">Select Action</option>
+                                <option value="Email">Email</option>
+                                <option value="Call">Call</option>
+                                <option value="Meeting">Meeting</option>
+                                <option value="Demo">Demo</option>
+                                <option value="Follow-up">Follow-up</option>
+                                <option value="Support">Support</option>
+                                <option value="Review">Review</option>
+                                <option value="Proposal">Proposal</option>
+                            </select>
+                            <textarea name="Notes" placeholder="Activity notes..." rows="2"></textarea>
+                            <button type="submit" class="btn btn-secondary">Add Activity</button>
+                        </form>
+                    </div>
+                    
+                    <div class="activities-list">
+                        ${activities.map(activity => `
+                            <div class="activity-item">
+                                <div class="activity-action">${activity.Action}</div>
+                                <div>${activity.Notes}</div>
+                                <div class="activity-timestamp">${formatDate(activity.Timestamp)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function makeEditable(element, field) {
+            if (element.querySelector('input, select')) return; // Already editing
+            
+            const currentValue = element.textContent.trim();
+            const customer = currentCustomerDetail.customer;
+            
+            let input;
+            if (field === 'Status') {
+                input = document.createElement('select');
+                ['Lead', 'Active', 'Churned', 'Prospect'].forEach(status => {
+                    const option = document.createElement('option');
+                    option.value = status;
+                    option.textContent = status;
+                    option.selected = status === currentValue;
+                    input.appendChild(option);
+                });
+            } else if (field === 'Deal Value') {
+                input = document.createElement('input');
+                input.type = 'number';
+                input.value = currentValue.replace(/[$,]/g, '');
+                input.step = '1000';
+                input.min = '0';
+            } else {
+                input = document.createElement('input');
+                input.type = field === 'Email' ? 'email' : 'text';
+                input.value = currentValue === 'Not set' || currentValue === 'No tags' ? '' : currentValue;
+            }
+            
+            input.className = 'editing';
+            input.onblur = () => finishEditing(element, field, input);
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    finishEditing(element, field, input);
+                }
+                if (e.key === 'Escape') {
+                    renderCustomerDetail(); // Cancel editing
+                }
+            };
+            
+            element.innerHTML = '';
+            element.appendChild(input);
+            input.focus();
+            input.select();
+        }
+
+        function finishEditing(element, field, input) {
+            let newValue = input.value.trim();
+            
+            if (field === 'Status') {
+                element.innerHTML = `<span class="status-badge status-${newValue.toLowerCase()}">${newValue}</span>`;
+            } else if (field === 'Deal Value') {
+                element.innerHTML = `$${Number(newValue || 0).toLocaleString()}`;
+            } else {
+                element.innerHTML = newValue || (field === 'Tags' ? 'No tags' : 'Not set');
+            }
+            
+            // Update the customer data
+            if (newValue) {
+                currentCustomerDetail.customer[field] = newValue;
+            } else if (field === 'Tags') {
+                currentCustomerDetail.customer[field] = '';
+            }
+        }
+
+        async function saveCustomerChanges() {
+            try {
+                const customer = currentCustomerDetail.customer;
+                await apiCall(`/customers/${customer.ID}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(customer)
+                });
+                
+                showToast('Customer updated successfully!', 'success');
+                closeDrawer();
+                loadCustomers(); // Refresh the table
+            } catch (error) {
+                console.error('Failed to save customer:', error);
+                showToast('Failed to save customer', 'error');
+            }
+        }
+
+        async function addActivity(event) {
+            event.preventDefault();
+            try {
+                const formData = new FormData(event.target);
+                const activityData = {
+                    Action: formData.get('Action'),
+                    Notes: formData.get('Notes')
+                };
+                
+                await apiCall(`/customers/${currentCustomerDetail.customer.ID}/log`, {
+                    method: 'POST',
+                    body: JSON.stringify(activityData)
+                });
+                
+                showToast('Activity logged successfully!', 'success');
+                event.target.reset();
+                
+                // Refresh customer detail
+                viewCustomer(currentCustomerDetail.customer.ID);
+            } catch (error) {
+                console.error('Failed to add activity:', error);
+                showToast('Failed to add activity', 'error');
+            }
+        }
+
+        // Add Customer Functions
+        async function handleAddCustomer(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const customerData = {};
+            
+            for (const [key, value] of formData.entries()) {
+                customerData[key] = value;
+            }
+            
+            // Convert deal value to number
+            if (customerData['Deal Value']) {
+                customerData['Deal Value'] = Number(customerData['Deal Value']);
+            }
+            
+            try {
+                await apiCall('/customers', {
+                    method: 'POST',
+                    body: JSON.stringify(customerData)
+                });
+                
+                showToast('Customer added successfully!', 'success');
+                event.target.reset();
+                switchPage('customers');
+                
+                // Update navigation
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                document.querySelector('[data-page="customers"]').classList.add('active');
+            } catch (error) {
+                console.error('Failed to add customer:', error);
+                showToast('Failed to add customer', 'error');
+            }
+        }
+
+        // Activity Log Functions
+        async function loadActivityLog() {
+            try {
+                const customers = await apiCall('/customers');
+                const allActivities = [];
+                
+                for (const customer of customers) {
+                    const customerDetail = await apiCall(`/customers/${customer.ID}`);
+                    customerDetail.activity_log.forEach(activity => {
+                        allActivities.push({
+                            ...activity,
+                            customerName: customer['Full Name']
+                        });
+                    });
+                }
+                
+                // Sort by timestamp (newest first)
+                allActivities.sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
+                
+                renderActivityLog(allActivities);
+            } catch (error) {
+                console.error('Failed to load activity log:', error);
+            }
+        }
+
+        function renderActivityLog(activities) {
+            const container = document.getElementById('activity-timeline');
+            
+            if (activities.length === 0) {
+                container.innerHTML = '<p>No activities found.</p>';
+                return;
+            }
+            
+            container.innerHTML = activities.map(activity => `
+                <div class="activity-item">
+                    <div class="activity-action">${activity.Action}</div>
+                    <div>${activity.Notes}</div>
+                    <div class="activity-timestamp">${activity.customerName} - ${formatDate(activity.Timestamp)}</div>
+                </div>
+            `).join('');
+        }
+
+        // Drawer Functions
+        function openDrawer() {
+            document.getElementById('customer-drawer').classList.add('open');
+        }
+
+        function closeDrawer() {
+            document.getElementById('customer-drawer').classList.remove('open');
+        }
+
+        // Utility Functions
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function showLoading(containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `
+                <tr>
+                    <td colspan="6">
+                        <div class="skeleton" style="height: 40px; margin: 10px 0;"></div>
+                        <div class="skeleton" style="height: 40px; margin: 10px 0;"></div>
+                        <div class="skeleton" style="height: 40px; margin: 10px 0;"></div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        // Close drawer when clicking outside
+        document.addEventListener('click', function(event) {
+            const drawer = document.getElementById('customer-drawer');
+            if (drawer.classList.contains('open') && 
+                !drawer.contains(event.target) && 
+                !event.target.closest('button[onclick*="viewCustomer"]')) {
+                closeDrawer();
+            }
+        });
+    </script>
+</body>
+</html>
